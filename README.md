@@ -1,6 +1,6 @@
 # rust-fifteen
 Fifteen puzzle game with piston engine.  
-Goal of the game is to arrange the pieces in order from 1 to 15.
+Goal of the game is to move the pieces in order from 1 to 15.
 
 ![Alternativer Text](fifteen.png)  
 
