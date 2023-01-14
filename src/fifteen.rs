@@ -1,5 +1,27 @@
+extern crate glutin_window;
+extern crate graphics;
+extern crate opengl_graphics;
+extern crate piston;
 
-pub struct App {
+use opengl_graphics::{GlGraphics, Filter, GlyphCache, TextureSettings, OpenGL};
+use piston::input::RenderArgs;
+use piston::Button;
+use piston::Key;
+use rand::prelude::*;
+
+const PIECE_SIZE:f64 = 100.0;
+const PIECE_DRAW_SIZE:f64 = PIECE_SIZE - 1.0;
+pub static HEIGHT_WIDTH:f64 = PIECE_SIZE * 4.0;
+const FONT_SIZE:u32 = 26;
+
+const GRIDX_COUNT: usize = 5;
+const GRIDY_COUNT: usize = 5;
+
+const EMPTY_SPACE: u8 = ((GRIDX_COUNT - 1) * (GRIDY_COUNT - 1)) as u8;
+
+const FONT: &str = "FiraSans-Regular.ttf";
+
+pub struct Application {
 	gl: GlGraphics,
 	grid: [[u8; GRIDX_COUNT]; GRIDY_COUNT],
 	fg: [f32; 4],
@@ -7,45 +29,57 @@ pub struct App {
 	tc: [f32; 4],
 }
 
-impl App {
+impl Application {
 	pub fn new() -> Self {
-        App {
-            grid: [[0; GRIDX_COUNT]; GRIDY_COUNT],
+		let opengl = OpenGL::V3_2;
+		let mut app = Application {
+			gl: GlGraphics::new(opengl),
+			grid: [[0; GRIDX_COUNT]; GRIDY_COUNT],
 			fg: [80.0/255.0, 20.0/255.0, 100.0/255.0, 1.0], // purple
 			bg: [0.0, 0.0, 0.0, 1.0], // black
-    		tc: [1.0, 1.0, 1.0, 1.0], // white	
-        }
-    }
-
-    fn render(&mut self, args: &RenderArgs) {
+			tc: [1.0, 1.0, 1.0, 1.0], // white
+		};
+		
+		for y in 1..GRIDY_COUNT {
+			for x in 1..GRIDX_COUNT {
+				app.grid[y][x] = ((y - 1) * (GRIDX_COUNT - 1) + x) as u8;
+				//println!("grid[{}][{}] = {}", y, x, app.grid[y][x]);
+			}
+		}
+		
+		app
+	}
+	
+	pub fn render(&mut self, args: &RenderArgs) {
 		use graphics::*;
-
-        const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
-        const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
-
-        let square = rectangle::square(0.0, 0.0, 50.0);
-        let rotation = self.rotation;
-        let (x, y) = (args.window_size[0] / 2.0, args.window_size[1] / 2.0);
-
-        self.gl.draw(args.viewport(), |c, gl| {
-            // Clear the screen.
-            clear(GREEN, gl);
-
-            let transform = c
-                .transform
-                .trans(x, y)
-                .rot_rad(rotation)
-                .trans(-25.0, -25.0);
-
-            // Draw a box rotating around the middle of the screen.
-            rectangle(RED, square, transform, gl);
-        });
-    }
-
-	fn press(&mut self, button: &Button) {
+		
+		self.gl.draw(args.viewport(), |c, gl| {
+			// Clear the screen.
+			clear(self.bg ,gl);
+			
+			let texture_settings = TextureSettings::new().filter(Filter::Nearest);
+			let ref mut glyphs = GlyphCache::new(FONT, (), texture_settings).expect(&format!("failed to load font `{}`", FONT));
+			
+			
+			for y in 1..GRIDY_COUNT {
+				for x in 1..GRIDX_COUNT {
+					if self.grid[y][x] != EMPTY_SPACE {
+						let rect = [(x - 1) as f64 * PIECE_SIZE, (y - 1) as f64 * PIECE_SIZE, PIECE_DRAW_SIZE, PIECE_DRAW_SIZE];
+						rectangle(self.fg, rect, c.transform, gl);
+						
+						let transform = c.transform.trans((x - 1) as f64 * PIECE_SIZE + 35.0, (y - 1) as f64 * PIECE_SIZE + 60.0);
+						let digit = self.grid[y][x].to_string();
+						text(self.tc, FONT_SIZE, &digit[..], glyphs, transform, gl).unwrap();
+					}
+				}
+			}
+		});
+	}
+	
+	pub fn press(&mut self, button: &Button) {
 		let mut empty_x = 0;
 		let mut empty_y = 0;
-
+		
 		for y in 1..GRIDY_COUNT {
 			for x in 1..GRIDX_COUNT {
 				if self.grid[y][x] == EMPTY_SPACE {
@@ -58,7 +92,7 @@ impl App {
 		}
 		let mut new_empty_y = empty_y;
 		let mut new_empty_x = empty_x;
-
+		
 		if let &Button::Keyboard(key) = button {
 			match key {
 				Key::Up => {
@@ -82,27 +116,58 @@ impl App {
 				}
 			}
 		}
-
+		
 		if new_empty_y > 0 && new_empty_y < GRIDY_COUNT && new_empty_x > 0 && new_empty_x < GRIDY_COUNT {
 			self.grid[empty_y][empty_x] = self.grid[new_empty_y][new_empty_x];
 			self.grid[new_empty_y][new_empty_x] = EMPTY_SPACE;
-	 	}
-	}
-
-	fn check_complete(&self) {
-		let mut complete = true;
-
-		for y in 1..GRIDY_COUNT {
-			   for x in 1..GRIDX_COUNT {
-				   if self.grid[y][x] != ((y - 1) * (GRIDX_COUNT - 1) + x) as u8 {
-					   complete = false;
-					   //println!("grid[{}][{}] = {}", y, x, self.grid[y][x]);
-				   }
-			   }
 		}
+	}
 	
+	pub fn check_complete(&self) {
+		let mut complete = true;
+		
+		for y in 1..GRIDY_COUNT {
+			for x in 1..GRIDX_COUNT {
+				if self.grid[y][x] != ((y - 1) * (GRIDX_COUNT - 1) + x) as u8 {
+					complete = false;
+					//println!("grid[{}][{}] = {}", y, x, self.grid[y][x]);
+				}
+			}
+		}
+		
 		if complete {
 			println!("complete");
+		}
+	}
+	
+	pub fn shuffle(&mut self) {
+		let mut rng = thread_rng();
+		
+		for _i in 0..200 {
+			// Exclusive range
+			let number: u32 = rng.gen_range(1..5);
+			//println!("{}", n);
+			
+			let mut button = Button::Keyboard(Key::Up);
+			match number {
+				1 => {
+					button = Button::Keyboard(Key::Up);
+				}
+				2 => {
+					button = Button::Keyboard(Key::Down);
+				}
+				3 => {
+					button = Button::Keyboard(Key::Left);
+				}
+				4 => {
+					button = Button::Keyboard(Key::Right);
+				}
+				_ => {
+					button = Button::Keyboard(Key::Up);
+				}
+			}
+			
+			self.press(&button);
 		}
 	}
 }
