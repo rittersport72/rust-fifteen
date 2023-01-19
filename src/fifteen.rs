@@ -14,13 +14,23 @@ const PIECE_DRAW_SIZE:f64 = PIECE_SIZE - 1.0;
 pub static HEIGHT_WIDTH:f64 = PIECE_SIZE * 4.0;
 const FONT_SIZE:u32 = 26;
 
-const GRIDX_COUNT: usize = 5;
-const GRIDY_COUNT: usize = 5;
+const GRIDX_COUNT: usize = 4;
+const GRIDY_COUNT: usize = 4;
 
-const EMPTY_SPACE: u8 = ((GRIDX_COUNT - 1) * (GRIDY_COUNT - 1)) as u8;
+const EMPTY_SPACE: u8 = (GRIDX_COUNT * GRIDY_COUNT) as u8;
 
 const FONT: &str = "FiraSans-Regular.ttf";
 
+// The grid[4, 4] numbering
+// +----+----+----+----+
+// |  1 |  2 |  3 |  4 |
+// +----+----+----+----+
+// |  5 |  6 |  7 |  8 |
+// +----+----+----+----+
+// |  9 | 10 | 11 | 12 |
+// +----+----+----+----+
+// | 13 | 14 | 15 | 16 |
+// +----+----+----+----+
 pub struct Application {
 	gl: GlGraphics,
 	grid: [[u8; GRIDX_COUNT]; GRIDY_COUNT],
@@ -40,9 +50,9 @@ impl Application {
 			tc: [1.0, 1.0, 1.0, 1.0], // white
 		};
 		
-		for y in 1..GRIDY_COUNT {
-			for x in 1..GRIDX_COUNT {
-				app.grid[y][x] = ((y - 1) * (GRIDX_COUNT - 1) + x) as u8;
+		for y in 0..GRIDY_COUNT {
+			for x in 0..GRIDX_COUNT {
+				app.grid[y][x] = (y * GRIDX_COUNT + x + 1) as u8;
 				//println!("grid[{}][{}] = {}", y, x, app.grid[y][x]);
 			}
 		}
@@ -60,15 +70,17 @@ impl Application {
 			let texture_settings = TextureSettings::new().filter(Filter::Nearest);
 			let ref mut glyphs = GlyphCache::new(FONT, (), texture_settings).expect(&format!("failed to load font `{}`", FONT));
 			
-			
-			for y in 1..GRIDY_COUNT {
-				for x in 1..GRIDX_COUNT {
+			for y in 0..GRIDY_COUNT {
+				for x in 0..GRIDX_COUNT {
 					if self.grid[y][x] != EMPTY_SPACE {
-						let rect = [(x - 1) as f64 * PIECE_SIZE, (y - 1) as f64 * PIECE_SIZE, PIECE_DRAW_SIZE, PIECE_DRAW_SIZE];
+						let rect = [x as f64 * PIECE_SIZE, y as f64 * PIECE_SIZE, PIECE_DRAW_SIZE, PIECE_DRAW_SIZE];
+						// Draw piece
 						rectangle(self.fg, rect, c.transform, gl);
-						
-						let transform = c.transform.trans((x - 1) as f64 * PIECE_SIZE + 35.0, (y - 1) as f64 * PIECE_SIZE + 60.0);
+						// Text position for piece
+						let transform = c.transform.trans(x as f64 * PIECE_SIZE + 35.0, y as f64 * PIECE_SIZE + 60.0);
 						let digit = self.grid[y][x].to_string();
+						println!("grid[{}][{}] = {}", y, x, self.grid[y][x]);
+						// Draw text
 						text(self.tc, FONT_SIZE, &digit[..], glyphs, transform, gl).unwrap();
 					}
 				}
@@ -77,14 +89,14 @@ impl Application {
 	}
 	
 	pub fn press(&mut self, button: &Button) {
-		let mut empty_x = 0;
-		let mut empty_y = 0;
+		let mut empty_x: i16 = 0;
+		let mut empty_y: i16 = 0;
 		
-		for y in 1..GRIDY_COUNT {
-			for x in 1..GRIDX_COUNT {
+		for y in 0..GRIDY_COUNT {
+			for x in 0..GRIDX_COUNT {
 				if self.grid[y][x] == EMPTY_SPACE {
-					empty_x = x;
-					empty_y = y;
+					empty_x = x as i16;
+					empty_y = y as i16;
 					println!("empty x {}, y {}", empty_x, empty_y);
 					break;
 				}
@@ -117,18 +129,18 @@ impl Application {
 			}
 		}
 		
-		if new_empty_y > 0 && new_empty_y < GRIDY_COUNT && new_empty_x > 0 && new_empty_x < GRIDY_COUNT {
-			self.grid[empty_y][empty_x] = self.grid[new_empty_y][new_empty_x];
-			self.grid[new_empty_y][new_empty_x] = EMPTY_SPACE;
+		if new_empty_y >= 0 && new_empty_y < GRIDY_COUNT as i16 && new_empty_x >= 0 && new_empty_x < GRIDY_COUNT as i16 {
+			self.grid[empty_y as usize][empty_x as usize] = self.grid[new_empty_y as usize][new_empty_x as usize];
+			self.grid[new_empty_y as usize][new_empty_x as usize] = EMPTY_SPACE;
 		}
 	}
 	
 	pub fn check_complete(&self) {
 		let mut complete = true;
 		
-		for y in 1..GRIDY_COUNT {
-			for x in 1..GRIDX_COUNT {
-				if self.grid[y][x] != ((y - 1) * (GRIDX_COUNT - 1) + x) as u8 {
+		for y in 0..GRIDY_COUNT {
+			for x in 0..GRIDX_COUNT {
+				if self.grid[y][x] != (y * GRIDX_COUNT + x + 1) as u8 {
 					complete = false;
 					//println!("grid[{}][{}] = {}", y, x, self.grid[y][x]);
 				}
@@ -145,21 +157,21 @@ impl Application {
 		
 		for _i in 0..200 {
 			// Exclusive range
-			let number: u32 = rng.gen_range(1..5);
-			//println!("{}", n);
+			let number: u32 = rng.gen_range(0..4);
+			//println!("random number {}", n);
 			
 			let mut button = Button::Keyboard(Key::Up);
 			match number {
-				1 => {
+				0 => {
 					button = Button::Keyboard(Key::Up);
 				}
-				2 => {
+				1 => {
 					button = Button::Keyboard(Key::Down);
 				}
-				3 => {
+				2 => {
 					button = Button::Keyboard(Key::Left);
 				}
-				4 => {
+				3 => {
 					button = Button::Keyboard(Key::Right);
 				}
 				_ => {

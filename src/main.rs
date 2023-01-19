@@ -26,7 +26,7 @@ fn main() {
 	
 	// Create a new game and run it.
 	let mut app = fifteen::Application::new();
-	app.shuffle();
+	//app.shuffle();
 	
 	let mut events = Events::new(EventSettings::new());
 	while let Some(e) = events.next(&mut window) {
